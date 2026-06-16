@@ -1,26 +1,397 @@
 @import "tailwindcss";
 
+/* ─── Tesla Design System Tokens ───────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Colors — source: styles.refero.design Tesla design system */
+  --tesla-blue:     #3e6ae1;
+  --pure-white:     #ffffff;
+  --off-white:      #eeeeee;
+  --parchment:      #e5e3df;
+  --light-border:   #cccccc;
+  --subtle-gray:    #8e8e8e;
+  --steel:          #5c5e62;
+  --charcoal:       #393c41;
+  --onyx:           #171a20;
+  --carbon:         #000000;
+
+  /* Dark-surface adaptations for Cybertruck page */
+  --bg-dark:        #0d0d0f;
+  --surface-dark:   #131518;
+  --surface-mid:    #1a1d22;
+  --border-dark:    rgba(255,255,255,0.1);
+  --border-subtle:  rgba(255,255,255,0.06);
+
+  /* Typography — Universal Sans Display → Manrope */
+  --font-display:   "Manrope", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Type Scale */
+  --text-display:   48px;
+  --text-heading-lg: 40px;
+  --text-heading:   28px;
+  --text-heading-sm: 20px;
+  --text-body:      14px;
+  --text-caption:   11px;
+
+  /* Spacing base = 4px */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Radius */
+  --radius-btn:  4px;
+  --radius-card: 8px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ─── Base ──────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+  background: var(--bg-dark);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-display);
+  font-size: var(--text-body);
+  font-weight: 400;
+  color: var(--pure-white);
+  background: var(--bg-dark);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
+
+::selection {
+  background: var(--tesla-blue);
+  color: var(--pure-white);
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: var(--surface-mid); border-radius: 2px; }
+
+/* ─── Tesla Typography Scale ────────────────────────────────────── */
+.t-display {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 6vw, 4.5rem); /* scales from 38px to 72px */
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.t-heading-lg {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.t-heading {
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 2.5vw, 1.75rem);
+  font-weight: 500;
+  line-height: 1.29;
+}
+
+.t-heading-sm {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.t-body {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+.t-caption {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Tesla Buttons ─────────────────────────────────────────────── */
+/* Primary — white fill, used on dark backgrounds */
+.btn-tesla-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 24px;
+  background: rgba(244, 244, 244, 0.65);
+  color: var(--charcoal);
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  border: none;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+.btn-tesla-primary:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* Secondary — semi-transparent dark, used on dark backgrounds */
+.btn-tesla-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 24px;
+  background: rgba(22, 27, 34, 0.65);
+  color: var(--pure-white);
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+.btn-tesla-secondary:hover {
+  background: rgba(22, 27, 34, 0.85);
+  border-color: rgba(255, 255, 255, 0.38);
+}
+
+/* Accent — Tesla blue, primary action */
+.btn-tesla-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 24px;
+  background: var(--tesla-blue);
+  color: var(--pure-white);
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  border: none;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  white-space: nowrap;
+}
+.btn-tesla-accent:hover {
+  background: #3060d0;
+  box-shadow: 0 2px 16px rgba(62, 106, 225, 0.4);
+}
+
+/* Ghost — for light backgrounds */
+.btn-tesla-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 24px;
+  background: transparent;
+  color: var(--onyx);
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid var(--onyx);
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+.btn-tesla-ghost:hover {
+  background: var(--onyx);
+  color: var(--pure-white);
+}
+
+/* ─── Section layouts ───────────────────────────────────────────── */
+.tesla-section {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tesla-section-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding-bottom: clamp(48px, 8vh, 96px);
+  text-align: center;
+  z-index: 10;
+}
+
+/* ─── Divider ───────────────────────────────────────────────────── */
+.tesla-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--border-dark) 20%,
+    var(--border-dark) 80%,
+    transparent 100%
+  );
+}
+
+/* ─── Grid overlay ──────────────────────────────────────────────── */
+.grid-overlay {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+
+/* ─── Tesla label / eyebrow ─────────────────────────────────────── */
+.tesla-label {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--subtle-gray);
+}
+
+/* ─── Reveal animations ─────────────────────────────────────────── */
+@keyframes tsReveal {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ts-reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition:
+    opacity 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    transform 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.ts-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ts-reveal-left {
+  opacity: 0;
+  transform: translateX(-40px);
+  transition:
+    opacity 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    transform 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.ts-reveal-left.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.ts-reveal-right {
+  opacity: 0;
+  transform: translateX(40px);
+  transition:
+    opacity 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    transform 0.75s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.ts-reveal-right.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.delay-100 { transition-delay: 100ms; }
+.delay-200 { transition-delay: 200ms; }
+.delay-300 { transition-delay: 300ms; }
+.delay-400 { transition-delay: 400ms; }
+.delay-500 { transition-delay: 500ms; }
+
+/* ─── Particle canvas ───────────────────────────────────────────── */
+.particle-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ─── Scroll indicator ──────────────────────────────────────────── */
+@keyframes scrollDrop {
+  0%   { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(200%); opacity: 0; }
+}
+
+.scroll-indicator-line::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 45%;
+  background: rgba(255, 255, 255, 0.6);
+  animation: scrollDrop 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ─── CyberTruck SVG float ──────────────────────────────────────── */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
+}
+.ct-float { animation: floatY 4.5s ease-in-out infinite; }
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.ct-spin { animation: spinSlow 22s linear infinite; }
+
+/* ─── Glass card ────────────────────────────────────────────────── */
+.glass-card {
+  background: rgba(23, 26, 32, 0.7);
+  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--radius-card);
+}
+
+/* ─── Stat number ───────────────────────────────────────────────── */
+.stat-num {
+  font-family: var(--font-display);
+  font-size: clamp(2.8rem, 6vw, 5.5rem);
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  color: var(--pure-white);
+  line-height: 1;
+}
+
+/* ─── Misc helpers ──────────────────────────────────────────────── */
+.text-steel   { color: var(--steel); }
+.text-subtle  { color: var(--subtle-gray); }
+.text-onyx    { color: var(--onyx); }
+.text-charcoal { color: var(--charcoal); }
+
+.bg-onyx      { background: var(--onyx); }
+.bg-dark      { background: var(--bg-dark); }
+.bg-surface   { background: var(--surface-dark); }
