@@ -1,7 +1,8 @@
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
-import Booking from "@/components/Booking";
+import Schedule from "@/components/Schedule";
 import VideoStrip from "@/components/VideoStrip";
+import Vouchers from "@/components/Vouchers";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 
@@ -11,8 +12,9 @@ export default function Home() {
       <Navigation />
       <main>
         <Hero />
-        <Booking />
+        <Schedule />
         <VideoStrip />
+        <Vouchers />
         <Contact />
       </main>
       <Footer />

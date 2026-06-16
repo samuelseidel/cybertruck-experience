@@ -186,7 +186,8 @@ function HeroContent() {
           transition: "all 0.7s ease 0.3s",
         }}
       >
-        <a href="#book" className="btn-tesla-accent">Book a Ride</a>
+        <a href="#schedule" className="btn-tesla-accent">Book a Date</a>
+        <a href="#vouchers" className="btn-tesla-secondary">Buy a Voucher</a>
       </div>
     </div>
   );
