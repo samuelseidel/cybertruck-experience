@@ -3,12 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-const navLinks = [
-  { label: "The Ride", href: "#experience" },
-  { label: "Performance", href: "#performance" },
-  { label: "Gallery", href: "#gallery" },
-  { label: "Book", href: "#book" },
-];
+const navLinks: { label: string; href: string }[] = [];
 
 /* Tesla logo SVG — "T" wordmark */
 function TeslaLogo() {
