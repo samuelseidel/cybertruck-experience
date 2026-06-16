@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 
 const CDN = "https://digitalassets.tesla.com/tesla-contents/image/upload/f_auto,q_auto";
-const HERO_VIDEO_MP4 = `${CDN}/Cybertruck_Hero_Desktop.mp4`;
+const VIDEO_CDN = "https://digitalassets.tesla.com/tesla-contents/video/upload/f_auto,q_auto:best";
+const HERO_VIDEO_MP4 = `${VIDEO_CDN}/Cybertruck-Built-For-Any-Planet-Desktop.mp4`;
 const HERO_VIDEO_WEBM = `${CDN}/Cybertruck_Hero_Desktop.webm`;
-const HERO_POSTER = `${CDN}/Cybertruck_Hero_Desktop.jpg`;
+const HERO_POSTER = `${CDN}/Cybertruck-Built-For-Any-Planet-Desktop-Poster.jpg`;
 
 export default function Hero() {
   const videoRef = useRef<HTMLVideoElement>(null);
