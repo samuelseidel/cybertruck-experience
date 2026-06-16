@@ -19,6 +19,11 @@ export default function Contact() {
   });
 
   useEffect(() => {
+    const pkg = sessionStorage.getItem("selectedPkg");
+    if (pkg) { setForm((f) => ({ ...f, package: pkg })); sessionStorage.removeItem("selectedPkg"); }
+  }, []);
+
+  useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const obs = new IntersectionObserver(
@@ -73,7 +78,7 @@ export default function Contact() {
       {/* Background image — the confirmed Tesla hero image */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={`${CDN}/CyberTruck_Hero_Desktop.jpg`}
+        src={`${CDN}/Cybertruck-Main-Hero-Desktop.jpg`}
         alt=""
         aria-hidden
         style={{
@@ -118,7 +123,7 @@ export default function Contact() {
             transition: "all 0.8s cubic-bezier(0.25,0.46,0.45,0.94)",
           }}
         >
-          <p className="tesla-label" style={{ marginBottom: "16px" }}>Reserve</p>
+          <p className="tesla-label" style={{ marginBottom: "16px" }}>Book</p>
           <h2
             className="t-heading-lg"
             style={{ color: "var(--pure-white)", marginBottom: "20px" }}
@@ -302,7 +307,7 @@ export default function Contact() {
                     style={inputStyle}
                     type="text"
                     required
-                    placeholder="Elon"
+                    placeholder="Jane"
                     value={form.firstName}
                     onChange={(e) => setForm({ ...form, firstName: e.target.value })}
                     onFocus={(e) => {
@@ -321,7 +326,7 @@ export default function Contact() {
                     style={inputStyle}
                     type="text"
                     required
-                    placeholder="Musk"
+                    placeholder="Smith"
                     value={form.lastName}
                     onChange={(e) => setForm({ ...form, lastName: e.target.value })}
                     onFocus={(e) => {
@@ -343,7 +348,7 @@ export default function Contact() {
                   style={inputStyle}
                   type="email"
                   required
-                  placeholder="elon@tesla.com"
+                  placeholder="you@example.com"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   onFocus={(e) => {

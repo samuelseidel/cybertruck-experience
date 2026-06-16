@@ -15,7 +15,7 @@ const packages = [
       "Performance demonstration",
       "Digital memory package",
     ],
-    cta: "Select",
+    cta: "Book Now",
     accent: false,
   },
   {
@@ -49,7 +49,7 @@ const packages = [
       "Merchandise kit",
       "Dedicated host",
     ],
-    cta: "Select",
+    cta: "Book Now",
     accent: false,
   },
 ];
@@ -214,6 +214,7 @@ function PackageCard({
         href="#contact"
         className={pkg.accent ? "btn-tesla-accent" : "btn-tesla-secondary"}
         style={{ textAlign: "center", justifyContent: "center" }}
+        onClick={() => sessionStorage.setItem("selectedPkg", pkg.id)}
       >
         {pkg.cta}
       </a>

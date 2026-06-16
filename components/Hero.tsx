@@ -187,7 +187,6 @@ function HeroContent() {
         }}
       >
         <a href="#book" className="btn-tesla-accent">Book a Ride</a>
-        <a href="#experience" className="btn-tesla-secondary">The Experience</a>
       </div>
     </div>
   );
