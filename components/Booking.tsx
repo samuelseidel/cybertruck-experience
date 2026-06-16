@@ -32,7 +32,7 @@ const packages = [
       "Professional photo set",
       "Cybertruck keepsake",
     ],
-    cta: "Order Now",
+    cta: "Book Now",
     accent: true,
   },
   {

@@ -1,11 +1,11 @@
 "use client";
 
 const footerLinks = {
-  Vehicles: ["Model S", "Model 3", "Model X", "Model Y", "Cybertruck", "Semi"],
-  Energy: ["Solar Panels", "Solar Roof", "Powerwall", "Powerpack", "Megapack"],
-  Charging: ["Charging", "Supercharger", "Home Charging", "Destination Charging"],
-  Discover: ["About Tesla", "Careers", "Press", "Investor Relations", "Contact"],
-  Legal: ["Privacy & Legal", "Vehicle Privacy Notice", "Contact", "News", "Locations"],
+  Experience: ["Book a Ride", "The Packages", "Gift Cards", "Corporate Events", "FAQ"],
+  Locations: ["Los Angeles", "San Francisco", "Las Vegas", "New York", "Miami"],
+  Safety: ["Safety Briefing", "Insurance", "Requirements", "Accessibility"],
+  Company: ["About", "Press", "Careers", "Partners", "Contact"],
+  Legal: ["Terms of Service", "Privacy Policy", "Refund Policy", "Cookie Policy"],
 };
 
 export default function Footer() {
@@ -40,7 +40,6 @@ export default function Footer() {
                   fontWeight: 500,
                   color: "var(--pure-white)",
                   marginBottom: "12px",
-                  letterSpacing: "0",
                 }}
               >
                 {category}
@@ -57,15 +56,12 @@ export default function Footer() {
                         color: "var(--subtle-gray)",
                         textDecoration: "none",
                         transition: "color 0.15s ease",
-                        letterSpacing: "0",
                       }}
                       onMouseEnter={(e) =>
-                        ((e.currentTarget as HTMLAnchorElement).style.color =
-                          "var(--pure-white)")
+                        ((e.currentTarget as HTMLAnchorElement).style.color = "var(--pure-white)")
                       }
                       onMouseLeave={(e) =>
-                        ((e.currentTarget as HTMLAnchorElement).style.color =
-                          "var(--subtle-gray)")
+                        ((e.currentTarget as HTMLAnchorElement).style.color = "var(--subtle-gray)")
                       }
                     >
                       {link}
@@ -100,11 +96,11 @@ export default function Footer() {
             color: "var(--steel)",
           }}
         >
-          Tesla © {new Date().getFullYear()} · All Rights Reserved
+          Cybertruck Experience © {new Date().getFullYear()} · Not affiliated with Tesla, Inc.
         </p>
 
         <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-          {["Privacy", "Legal", "Contact", "Careers"].map((label) => (
+          {["Privacy", "Terms", "Refunds", "Contact"].map((label) => (
             <a
               key={label}
               href="#"
@@ -117,12 +113,10 @@ export default function Footer() {
                 transition: "color 0.15s ease",
               }}
               onMouseEnter={(e) =>
-                ((e.currentTarget as HTMLAnchorElement).style.color =
-                  "var(--pure-white)")
+                ((e.currentTarget as HTMLAnchorElement).style.color = "var(--pure-white)")
               }
               onMouseLeave={(e) =>
-                ((e.currentTarget as HTMLAnchorElement).style.color =
-                  "var(--steel)")
+                ((e.currentTarget as HTMLAnchorElement).style.color = "var(--steel)")
               }
             >
               {label}

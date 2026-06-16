@@ -143,10 +143,44 @@ export default function Contact() {
 
           {/* Info list */}
           {[
-            { icon: "📍", label: "Location", value: "Tesla Experience Center, Los Angeles" },
-            { icon: "🕐", label: "Duration", value: "30, 60, or 120 minutes" },
-            { icon: "🛡", label: "Insurance", value: "Full coverage included" },
-            { icon: "📞", label: "Questions", value: "+1 (888) 518-3752" },
+            {
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 1.5C5.515 1.5 3.5 3.515 3.5 6c0 3.5 4.5 8.5 4.5 8.5S12.5 9.5 12.5 6c0-2.485-2.015-4.5-4.5-4.5zm0 6a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" fill="rgba(255,255,255,0.35)"/>
+                </svg>
+              ),
+              label: "Location",
+              value: "Cybertruck Experience Center, Los Angeles",
+            },
+            {
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="6" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2"/>
+                  <path d="M8 5v3.5l2 1.5" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ),
+              label: "Duration",
+              value: "30, 60, or 120 minutes",
+            },
+            {
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 1.5L2 4v4c0 3.3 2.5 5.8 6 6.5 3.5-.7 6-3.2 6-6.5V4L8 1.5z" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2" strokeLinejoin="round"/>
+                  <path d="M5.5 8l1.5 1.5 3.5-3" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ),
+              label: "Insurance",
+              value: "Full coverage included",
+            },
+            {
+              icon: (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 3h2l1.5 3.5-1.5 1S6 10 9 11.5l1-1.5L13.5 11v2c-6 1-11-7-10.5-10z" stroke="rgba(255,255,255,0.35)" strokeWidth="1.2" strokeLinejoin="round"/>
+                </svg>
+              ),
+              label: "Questions",
+              value: "+1 (888) 518-3752",
+            },
           ].map((item) => (
             <div
               key={item.label}
@@ -157,7 +191,7 @@ export default function Contact() {
                 marginBottom: "20px",
               }}
             >
-              <span style={{ fontSize: "1rem", marginTop: "1px", flexShrink: 0 }}>
+              <span style={{ marginTop: "2px", flexShrink: 0 }}>
                 {item.icon}
               </span>
               <div>

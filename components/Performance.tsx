@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 
 const stats = [
-  { value: "2.6s", label: "0–60 mph" },
-  { value: "340mi", label: "Est. Range" },
-  { value: "11k lbs", label: "Towing" },
-  { value: "835hp", label: "Tri-Motor" },
+  { value: "2.6s", label: "0–60 mph — you'll feel every millisecond" },
+  { value: "835hp", label: "Tri-motor — instant, silent, relentless" },
+  { value: "11k lbs", label: "Towing — more than an African elephant" },
+  { value: "17in", label: "Air suspension clearance — anywhere" },
 ];
 
 function useReveal(threshold = 0.25) {
@@ -47,12 +47,12 @@ export default function Performance() {
           className="ts-reveal"
           style={{ marginBottom: "clamp(48px, 6vw, 80px)", textAlign: "center", ...(headVisible && { opacity: 1, transform: "none" }) }}
         >
-          <p className="tesla-label" style={{ marginBottom: "16px" }}>Performance</p>
+          <p className="tesla-label" style={{ marginBottom: "16px" }}>What you are about to feel</p>
           <h2
             className="t-heading-lg"
             style={{ color: "var(--pure-white)", marginBottom: "16px" }}
           >
-            Insane. Ludicrous. Beast.
+            Numbers don&apos;t prepare you.
           </h2>
           <p
             style={{
@@ -65,8 +65,7 @@ export default function Performance() {
               lineHeight: 1.6,
             }}
           >
-            Three independent motors. All-wheel drive standard. Performance numbers
-            that redefine what a truck can do.
+            Reading 2.6 seconds is one thing. Feeling three motors pin you to your seat — in a truck — is something else entirely.
           </p>
         </div>
 
@@ -84,10 +83,10 @@ export default function Performance() {
           }}
         >
           <a href="#book" className="btn-tesla-accent">
-            Order Now
+            Book a Ride
           </a>
-          <a href="#experience" className="btn-tesla-secondary">
-            Compare Models
+          <a href="#book" className="btn-tesla-secondary">
+            View Packages
           </a>
         </div>
       </div>

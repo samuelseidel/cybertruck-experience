@@ -4,10 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 const navLinks = [
-  { label: "Experience", href: "#experience" },
+  { label: "The Ride", href: "#experience" },
   { label: "Performance", href: "#performance" },
   { label: "Gallery", href: "#gallery" },
-  { label: "Reserve", href: "#book" },
+  { label: "Book", href: "#book" },
 ];
 
 /* Tesla logo SVG — "T" wordmark */
@@ -137,7 +137,7 @@ export default function Navigation() {
             className="btn-tesla-accent hidden-mobile"
             style={{ height: "36px", padding: "0 20px", fontSize: "0.8125rem" }}
           >
-            Order Now
+            Book a Ride
           </a>
 
           {/* Hamburger */}
@@ -217,7 +217,7 @@ export default function Navigation() {
             style={{ marginTop: "16px", width: "100%", justifyContent: "center" }}
             onClick={() => setMenuOpen(false)}
           >
-            Order Now
+            Book a Ride
           </a>
         </div>
       </div>

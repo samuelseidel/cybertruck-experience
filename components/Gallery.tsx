@@ -219,7 +219,7 @@ export default function Gallery() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
-            gridTemplateRows: "400px 260px",
+            gridTemplateRows: "360px 220px",
             gap: "12px",
           }}
         >
@@ -238,7 +238,7 @@ export default function Gallery() {
         </div>
 
         {/* Off-Road — full width */}
-        <div style={{ marginTop: "12px", height: "220px" }}>
+        <div style={{ marginTop: "12px", height: "200px" }}>
           <GalleryCell {...items[3]} delay={300} />
         </div>
       </div>

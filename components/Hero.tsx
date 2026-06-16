@@ -143,7 +143,7 @@ function HeroContent() {
           transition: "all 0.7s ease 0s",
         }}
       >
-        Limited Availability · Now Delivering
+        Cybertruck Experience · Limited Availability
       </p>
 
       <h1
@@ -157,7 +157,7 @@ function HeroContent() {
           transition: "all 0.7s ease 0.1s",
         }}
       >
-        Cybertruck
+        Drive the future.
       </h1>
 
       <p
@@ -172,7 +172,7 @@ function HeroContent() {
           transition: "all 0.7s ease 0.2s",
         }}
       >
-        The first truck built on a pure electric architecture
+        Get behind the wheel of the Cyberbeast — or ride along. Today.
       </p>
 
       <div
@@ -186,8 +186,8 @@ function HeroContent() {
           transition: "all 0.7s ease 0.3s",
         }}
       >
-        <a href="#book" className="btn-tesla-primary">Reserve Now</a>
-        <a href="#experience" className="btn-tesla-secondary">Learn More</a>
+        <a href="#book" className="btn-tesla-accent">Book a Ride</a>
+        <a href="#experience" className="btn-tesla-secondary">The Experience</a>
       </div>
     </div>
   );
