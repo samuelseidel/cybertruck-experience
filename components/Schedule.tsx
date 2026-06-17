@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Slot = { time: string; spots: number };
 type TourDate = { label: string; iso: string; slots: Slot[] };
@@ -70,19 +71,13 @@ export default function Schedule() {
 
   const tour = TOURS[tourIdx];
   const dateEntry = tour.dates[dateIdx];
+  const router = useRouter();
 
   function pickTour(i: number) { setTourIdx(i); setDateIdx(0); setSelectedTime(null); }
   function pickDate(i: number) { setDateIdx(i); setSelectedTime(null); }
 
   function bookSlot() {
-    sessionStorage.setItem("selectedSlot", JSON.stringify({
-      city: tour.city,
-      address: tour.address,
-      date: dateEntry.label,
-      iso: dateEntry.iso,
-      time: selectedTime,
-    }));
-    document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
+    router.push(`/reserve?city=${tour.id}&date=${dateEntry.iso}&time=${encodeURIComponent(selectedTime!)}`);
   }
 
   return (
