@@ -176,7 +176,7 @@ export default function Contact() {
                 </svg>
               ),
               label: "Location",
-              value: "Cybertruck Experience Center, Los Angeles",
+              value: "Prague · Brno · Hradec Králové · Ostrava",
             },
             {
               icon: (
@@ -205,7 +205,7 @@ export default function Contact() {
                 </svg>
               ),
               label: "Questions",
-              value: "+1 (888) 518-3752",
+              value: "hello@cybertruck.experience",
             },
           ].map((item) => (
             <div
@@ -431,7 +431,7 @@ export default function Contact() {
                 <input
                   style={inputStyle}
                   type="tel"
-                  placeholder="+1 (555) 000-0000"
+                  placeholder="+420 600 000 000"
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   onFocus={(e) => {
@@ -453,9 +453,9 @@ export default function Contact() {
                   value={form.package}
                   onChange={(e) => setForm({ ...form, package: e.target.value })}
                 >
-                  <option value="discovery">Discovery — 30 min · $149</option>
-                  <option value="full">Full Power — 60 min · $249</option>
-                  <option value="elite">Elite — 120 min · $499</option>
+                  <option value="discovery">Discovery — 30 min · €149</option>
+                  <option value="full">Full Power — 60 min · €249</option>
+                  <option value="elite">Elite — 120 min · €499</option>
                 </select>
               </div>
 

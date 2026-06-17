@@ -58,6 +58,57 @@ const PACKAGES = [
   { id: "elite",     name: "Elite",      duration: "120 min", price: "€499", desc: "Private session" },
 ];
 
+// ─── Geo helpers ─────────────────────────────────────────────────────
+
+const TOUR_COORDS: Record<string, { lat: number; lng: number }> = {
+  prague:  { lat: 50.1003, lng: 14.4500 },
+  brno:    { lat: 49.1951, lng: 16.6068 },
+  hradec:  { lat: 50.2090, lng: 15.8327 },
+  ostrava: { lat: 49.8209, lng: 18.2625 },
+};
+
+const CITY_LOOKUP: [string, string][] = [
+  ["prague", "prague"], ["praha", "prague"], ["stredocesky", "prague"],
+  ["kladno", "prague"], ["beroun", "prague"], ["melnik", "prague"],
+  ["brno", "brno"], ["jihomoravsky", "brno"], ["znojmo", "brno"],
+  ["hodonin", "brno"], ["breclav", "brno"], ["vyskov", "brno"],
+  ["hradec", "hradec"], ["pardubice", "hradec"], ["liberec", "hradec"],
+  ["olomouc", "hradec"], ["jicin", "hradec"], ["chrudim", "hradec"],
+  ["ostrava", "ostrava"], ["opava", "ostrava"], ["karvina", "ostrava"],
+  ["frydek", "ostrava"], ["havirov", "ostrava"], ["prerov", "ostrava"],
+];
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+function nearestToCoords(lat: number, lng: number): { tour: Tour; km: number } {
+  let best = TOURS[0];
+  let bestKm = Infinity;
+  for (const tour of TOURS) {
+    const c = TOUR_COORDS[tour.id];
+    const km = haversineKm(lat, lng, c.lat, c.lng);
+    if (km < bestKm) { bestKm = km; best = tour; }
+  }
+  return { tour: best, km: bestKm };
+}
+
+function nearestToText(input: string): Tour | null {
+  const q = input.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  if (q.length < 3) return null;
+  for (const [key, tourId] of CITY_LOOKUP) {
+    if (q.includes(key) || key.startsWith(q)) {
+      return TOURS.find(t => t.id === tourId) ?? null;
+    }
+  }
+  return null;
+}
+
 // ─── Left panel images (Tesla discovery CDN → tesla-contents fallback) ─
 
 const DISC = "https://digitalassets.tesla.com/discovery-tesla-com/image/upload/f_auto,q_auto";
@@ -71,7 +122,7 @@ const LEFT_IMAGES = [
 ];
 
 const LEFT_COPY = [
-  "Choose your city.",
+  "Find your nearest stop.",
   "Pick your time slot.",
   "Almost there.",
   "See you there.",
@@ -79,10 +130,23 @@ const LEFT_COPY = [
 
 // ─── Booking state ──────────────────────────────────────────────────
 
+const VOUCHER_RE = /^CT-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+
+function fmtVoucher(raw: string): string {
+  const chars = raw.replace(/[^A-Z0-9]/g, "").toUpperCase().slice(0, 14);
+  const parts: string[] = [];
+  if (chars.length >= 2)  parts.push(chars.slice(0, 2));
+  if (chars.length >= 3)  parts.push(chars.slice(2, 6));
+  if (chars.length >= 7)  parts.push(chars.slice(6, 10));
+  if (chars.length >= 11) parts.push(chars.slice(10, 14));
+  return parts.join("-");
+}
+
 interface Booking {
   cityId: string; city: string; address: string;
   dateIdx: number; dateLabel: string; dateIso: string; time: string;
   package: string;
+  hasVoucher: boolean; voucherCode: string;
   firstName: string; lastName: string; email: string; phone: string;
 }
 
@@ -91,6 +155,7 @@ function initBooking(initialCity?: string, initialDate?: string, initialTime?: s
     cityId: "", city: "", address: "",
     dateIdx: 0, dateLabel: "", dateIso: "", time: "",
     package: "discovery",
+    hasVoucher: false, voucherCode: "",
     firstName: "", lastName: "", email: "", phone: "",
   };
   if (!initialCity) return { booking: empty, step: 0 };
@@ -218,7 +283,7 @@ export default function ReservationWizard({
 
           {/* Step content */}
           <div style={{ flex: 1, padding: "clamp(32px,5vw,56px) clamp(24px,5vw,64px)" }}>
-            {step === 0 && <CityStep    booking={booking} setBooking={setBooking} onNext={() => goStep(1)} />}
+            {step === 0 && <LocationStep booking={booking} setBooking={setBooking} onNext={() => goStep(1)} />}
             {step === 1 && tour && <DateTimeStep tour={tour} booking={booking} setBooking={setBooking} onNext={() => goStep(2)} />}
             {step === 2 && <DetailsStep  booking={booking} setBooking={setBooking} onNext={() => goStep(3)} />}
             {step === 3 && <ConfirmedStep booking={booking} />}
@@ -229,73 +294,225 @@ export default function ReservationWizard({
   );
 }
 
-// ─── Step 1: City ───────────────────────────────────────────────────
+// ─── Step 1: Location ────────────────────────────────────────────────
 
-function CityStep({ booking, setBooking, onNext }: { booking: Booking; setBooking: (b: Booking) => void; onNext: () => void }) {
-  function selectCity(t: Tour) {
-    const d = t.dates[0];
-    setBooking({ ...booking, cityId: t.id, city: t.city, address: t.address, dateIdx: 0, dateLabel: d.label, dateIso: d.iso, time: "" });
+type LocationPhase = "input" | "detecting" | "found";
+
+function LocationStep({ booking, setBooking, onNext }: { booking: Booking; setBooking: (b: Booking) => void; onNext: () => void }) {
+  const [phase, setPhase]       = useState<LocationPhase>(() => booking.cityId ? "found" : "input");
+  const [nearest, setNearest]   = useState<{ tour: Tour; km: number } | null>(() => {
+    if (!booking.cityId) return null;
+    const tour = TOURS.find(t => t.id === booking.cityId);
+    return tour ? { tour, km: 0 } : null;
+  });
+  const [showAll, setShowAll]   = useState(false);
+  const [query, setQuery]       = useState("");
+  const [errMsg, setErrMsg]     = useState("");
+  const [notFound, setNotFound] = useState(false);
+
+  function applyTour(tour: Tour, km = 0) {
+    const d = tour.dates[0];
+    setBooking({ ...booking, cityId: tour.id, city: tour.city, address: tour.address, dateIdx: 0, dateLabel: d.label, dateIso: d.iso, time: "" });
+    setNearest({ tour, km });
   }
+
+  function detectGeo() {
+    if (!("geolocation" in navigator)) { setErrMsg("Geolocation not supported — search below."); return; }
+    setPhase("detecting");
+    setErrMsg("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const result = nearestToCoords(pos.coords.latitude, pos.coords.longitude);
+        applyTour(result.tour, result.km);
+        setPhase("found");
+      },
+      () => { setErrMsg("Location access denied. Search by city below."); setPhase("input"); },
+      { timeout: 8000 }
+    );
+  }
+
+  function handleSearch(e: { preventDefault(): void }) {
+    e.preventDefault();
+    const found = nearestToText(query);
+    if (found) { applyTour(found); setPhase("found"); setNotFound(false); }
+    else        { setNotFound(true); }
+  }
+
+  function pickFromList(t: Tour) { applyTour(t); setPhase("found"); setShowAll(false); }
+
+  function openSlots(t: Tour) { return t.dates.reduce((s, d) => s + d.slots.filter(sl => sl.spots > 0).length, 0); }
+
+  const slotColor = (n: number) => n > 10 ? "rgba(100,190,100,0.75)" : n > 0 ? "rgba(255,160,50,0.75)" : "rgba(255,80,80,0.6)";
+
+  const CityRow = ({ t, selected }: { t: Tour; selected: boolean }) => {
+    const open = openSlots(t);
+    return (
+      <button onClick={() => pickFromList(t)} style={{
+        display: "flex", alignItems: "center", gap: "12px", padding: "14px 18px",
+        background: selected ? "rgba(62,106,225,0.09)" : "rgba(255,255,255,0.04)",
+        border: selected ? "1px solid rgba(62,106,225,0.35)" : "1px solid rgba(255,255,255,0.1)",
+        borderRadius: "var(--radius-card)", cursor: "pointer", textAlign: "left", transition: "all 0.15s ease",
+      }}>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: "0.9375rem", fontWeight: 500, color: "var(--pure-white)", marginBottom: "2px" }}>{t.city}</p>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 300, color: "var(--subtle-gray)" }}>{t.address}</p>
+        </div>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 400, color: selected ? "rgba(62,106,225,0.85)" : "var(--subtle-gray)", marginBottom: "2px" }}>{t.range}</p>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", fontWeight: 300, color: slotColor(open) }}>
+            {open > 0 ? `${open} slots` : "Sold out"}
+          </p>
+        </div>
+        {selected
+          ? <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "var(--tesla-blue)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 4.5l2 2 4-4" stroke="white" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+          : <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+              <path d="M3 7h8M7 3l4 4-4 4" stroke="rgba(255,255,255,0.3)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+        }
+      </button>
+    );
+  };
+
+  const Divider = ({ label }: { label: string }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "22px 0 16px" }}>
+      <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.08)" }} />
+      <span style={{ fontFamily: "var(--font-display)", fontSize: "0.6875rem", fontWeight: 300, color: "var(--steel)" }}>{label}</span>
+      <div style={{ flex: 1, height: "1px", background: "rgba(255,255,255,0.08)" }} />
+    </div>
+  );
 
   return (
     <div>
       <p className="tesla-label" style={{ marginBottom: "12px" }}>Step 1 of 3</p>
-      <h1 className="t-heading-lg" style={{ color: "var(--pure-white)", marginBottom: "8px" }}>Choose your city.</h1>
+      <h1 className="t-heading-lg" style={{ color: "var(--pure-white)", marginBottom: "8px" }}>Find your nearest stop.</h1>
       <p style={{ fontFamily: "var(--font-display)", fontSize: "0.9375rem", fontWeight: 300, color: "var(--subtle-gray)", lineHeight: 1.65, marginBottom: "36px", maxWidth: "420px" }}>
-        The Cybertruck is touring the Czech Republic this summer. Pick the location closest to you.
+        The Cybertruck is touring the Czech Republic this summer. We&apos;ll find the closest stop to you.
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "32px" }}>
-        {TOURS.map(t => {
-          const totalOpen = t.dates.reduce((s, d) => s + d.slots.filter(sl => sl.spots > 0).length, 0);
-          const sel = booking.cityId === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => selectCity(t)}
+      {/* ── Detecting ─── */}
+      {phase === "detecting" && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "56px 0", gap: "16px" }}>
+          <style>{`@keyframes rwSpin { to { transform: rotate(360deg); } }`}</style>
+          <div style={{ width: "36px", height: "36px", borderRadius: "50%", border: "2px solid rgba(62,106,225,0.2)", borderTopColor: "var(--tesla-blue)", animation: "rwSpin 0.75s linear infinite" }} />
+          <p style={{ fontFamily: "var(--font-display)", fontSize: "0.875rem", fontWeight: 300, color: "var(--subtle-gray)" }}>Detecting your location…</p>
+        </div>
+      )}
+
+      {/* ── Input ─── */}
+      {phase === "input" && (
+        <>
+          {errMsg && (
+            <div style={{ padding: "10px 14px", marginBottom: "20px", background: "rgba(255,160,50,0.07)", border: "1px solid rgba(255,160,50,0.2)", borderRadius: "4px" }}>
+              <p style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 300, color: "rgba(255,160,50,0.85)" }}>{errMsg}</p>
+            </div>
+          )}
+
+          <button onClick={detectGeo} style={{
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
+            width: "100%", height: "52px", marginBottom: "20px",
+            background: "rgba(62,106,225,0.09)", border: "1px solid rgba(62,106,225,0.28)", borderRadius: "var(--radius-card)",
+            cursor: "pointer", fontFamily: "var(--font-display)", fontSize: "0.9375rem", fontWeight: 500, color: "var(--tesla-blue)",
+            transition: "all 0.15s ease",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="2.5" fill="currentColor"/>
+              <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.2"/>
+              <path d="M8 1.5V3M8 13v1.5M1.5 8H3M13 8h1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+            Use My Location
+          </button>
+
+          <Divider label="or search by city" />
+
+          <form onSubmit={handleSearch} style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+            <input
+              type="text"
+              placeholder="Prague, Brno, Pardubice…"
+              value={query}
+              onChange={e => { setQuery(e.target.value); setNotFound(false); }}
               style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "18px 20px",
-                background: sel ? "rgba(62,106,225,0.09)" : "rgba(255,255,255,0.04)",
-                border: sel ? "1px solid rgba(62,106,225,0.45)" : "1px solid rgba(255,255,255,0.1)",
-                borderRadius: "var(--radius-card)", cursor: "pointer", textAlign: "left",
-                transition: "all 0.15s ease", gap: "12px",
+                flex: 1, height: "48px", padding: "0 16px",
+                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "4px",
+                fontFamily: "var(--font-display)", fontSize: "0.9375rem", fontWeight: 300, color: "var(--pure-white)", outline: "none",
               }}
-            >
-              <div style={{ flex: 1 }}>
-                <p style={{ fontFamily: "var(--font-display)", fontSize: "1rem", fontWeight: 500, color: "var(--pure-white)", marginBottom: "3px" }}>
-                  {t.city}
+            />
+            <button type="submit" style={{
+              width: "48px", height: "48px", flexShrink: 0,
+              background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "4px",
+              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="rgba(255,255,255,0.55)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </form>
+          {notFound && (
+            <p style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 300, color: "rgba(255,160,50,0.75)", marginBottom: "0" }}>
+              No match — choose a city below.
+            </p>
+          )}
+
+          <Divider label="or pick directly" />
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {TOURS.map(t => <CityRow key={t.id} t={t} selected={false} />)}
+          </div>
+        </>
+      )}
+
+      {/* ── Found ─── */}
+      {phase === "found" && nearest && (
+        <>
+          <div style={{
+            padding: "20px 22px", marginBottom: "20px",
+            background: "rgba(62,106,225,0.07)", border: "1px solid rgba(62,106,225,0.25)", borderRadius: "var(--radius-card)",
+          }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px" }}>
+              <div>
+                <p style={{ fontFamily: "var(--font-display)", fontSize: "0.6875rem", fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "rgba(62,106,225,0.7)", marginBottom: "8px" }}>
+                  {nearest.km > 0 ? `Nearest stop · ~${nearest.km} km away` : "Selected stop"}
                 </p>
-                <p style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 300, color: "var(--subtle-gray)" }}>
-                  {t.address}
-                </p>
+                <p style={{ fontFamily: "var(--font-display)", fontSize: "1.125rem", fontWeight: 500, color: "var(--pure-white)", marginBottom: "4px" }}>{nearest.tour.city}</p>
+                <p style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 300, color: "var(--subtle-gray)" }}>{nearest.tour.address}</p>
               </div>
               <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <p style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 400, color: sel ? "rgba(62,106,225,0.85)" : "var(--subtle-gray)", marginBottom: "3px" }}>
-                  {t.range}
-                </p>
-                <p style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", fontWeight: 300, color: totalOpen > 10 ? "rgba(100,190,100,0.75)" : totalOpen > 0 ? "rgba(255,160,50,0.75)" : "rgba(255,80,80,0.6)" }}>
-                  {totalOpen > 0 ? `${totalOpen} slots open` : "Sold out"}
-                </p>
+                <p style={{ fontFamily: "var(--font-display)", fontSize: "0.875rem", fontWeight: 500, color: "rgba(62,106,225,0.85)", marginBottom: "4px" }}>{nearest.tour.range}</p>
+                {(() => {
+                  const open = openSlots(nearest.tour);
+                  return <p style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", fontWeight: 300, color: slotColor(open) }}>{open} slots open</p>;
+                })()}
               </div>
-              <div style={{
-                flexShrink: 0, width: "20px", height: "20px", borderRadius: "50%",
-                border: sel ? "none" : "1.5px solid rgba(255,255,255,0.2)",
-                background: sel ? "var(--tesla-blue)" : "transparent",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "all 0.15s ease",
-              }}>
-                {sel && <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5 3.5-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+            </div>
+          </div>
 
-      <button onClick={onNext} disabled={!booking.cityId} className="btn-tesla-accent"
-        style={{ width: "100%", justifyContent: "center", height: "48px", opacity: booking.cityId ? 1 : 0.4 }}>
-        Continue
-      </button>
+          <button onClick={onNext} className="btn-tesla-accent" style={{ width: "100%", justifyContent: "center", height: "48px", marginBottom: "12px" }}>
+            See Available Slots
+          </button>
+
+          <button
+            onClick={() => setShowAll(prev => !prev)}
+            style={{
+              width: "100%", height: "40px",
+              background: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "var(--radius-card)",
+              cursor: "pointer", fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 400, color: "var(--subtle-gray)",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", transition: "border-color 0.15s ease",
+            }}
+          >
+            Choose a different city
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: showAll ? "rotate(180deg)" : "none", transition: "transform 0.2s ease" }}>
+              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+
+          {showAll && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
+              {TOURS.map(t => <CityRow key={t.id} t={t} selected={t.id === nearest.tour.id} />)}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -387,23 +604,48 @@ function DateTimeStep({ tour, booking, setBooking, onNext }: { tour: Tour; booki
   );
 }
 
-// ─── Step 3: Details ─────────────────────────────────────────────────
+// ─── Step 3: Details + Payment ───────────────────────────────────────
 
 function DetailsStep({ booking, setBooking, onNext }: { booking: Booking; setBooking: (b: Booking) => void; onNext: () => void }) {
-  const valid = booking.firstName && booking.lastName && booking.email && booking.phone;
+  const [loading, setLoading] = useState(false);
+  const [errMsg, setErrMsg]   = useState("");
 
-  const inp = {
+  const detailsOk  = !!(booking.firstName && booking.lastName && booking.email);
+  const voucherOk  = booking.hasVoucher && VOUCHER_RE.test(booking.voucherCode) && detailsOk;
+  const payOk      = !booking.hasVoucher && detailsOk;
+  const canSubmit  = voucherOk || payOk;
+
+  const selectedPkg = PACKAGES.find(p => p.id === booking.package) || PACKAGES[0];
+
+  async function handlePayNow() {
+    if (!payOk || loading) return;
+    setLoading(true);
+    setErrMsg("");
+    try {
+      const res = await fetch("/api/booking/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(booking),
+      });
+      const data = await res.json();
+      if (data.url) { window.location.href = data.url; }
+      else throw new Error(data.error || "Unknown error");
+    } catch {
+      setErrMsg("Payment setup failed — please try again.");
+      setLoading(false);
+    }
+  }
+
+  const inp: React.CSSProperties = {
     width: "100%", height: "48px", padding: "0 16px",
     background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "4px",
     fontFamily: "var(--font-display)", fontSize: "0.9375rem", fontWeight: 300, color: "var(--pure-white)",
     outline: "none", transition: "border-color 0.15s ease, background 0.15s ease",
-  } as React.CSSProperties;
-
-  const lbl = {
+  };
+  const lbl: React.CSSProperties = {
     display: "block", fontFamily: "var(--font-display)", fontSize: "0.6875rem", fontWeight: 500,
     letterSpacing: "0.08em", textTransform: "uppercase" as const, color: "var(--subtle-gray)", marginBottom: "8px",
   };
-
   function onFocus(e: React.FocusEvent<HTMLInputElement>) {
     e.currentTarget.style.borderColor = "rgba(62,106,225,0.5)";
     e.currentTarget.style.background  = "rgba(255,255,255,0.07)";
@@ -417,9 +659,6 @@ function DetailsStep({ booking, setBooking, onNext }: { booking: Booking; setBoo
     <div>
       <p className="tesla-label" style={{ marginBottom: "12px" }}>Step 3 of 3</p>
       <h1 className="t-heading-lg" style={{ color: "var(--pure-white)", marginBottom: "8px" }}>Your details.</h1>
-      <p style={{ fontFamily: "var(--font-display)", fontSize: "0.9375rem", fontWeight: 300, color: "var(--subtle-gray)", lineHeight: 1.6, marginBottom: "28px" }}>
-        Almost there — a few details to confirm your booking.
-      </p>
 
       {/* Slot summary */}
       <div style={{ padding: "14px 18px", background: "rgba(62,106,225,0.07)", border: "1px solid rgba(62,106,225,0.2)", borderRadius: "var(--radius-card)", marginBottom: "24px" }}>
@@ -430,29 +669,88 @@ function DetailsStep({ booking, setBooking, onNext }: { booking: Booking; setBoo
         <p style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 300, color: "var(--subtle-gray)" }}>{booking.address}</p>
       </div>
 
-      {/* Package selection */}
-      <p style={lbl}>Session</p>
-      <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
-        {PACKAGES.map(pkg => {
-          const sel = booking.package === pkg.id;
-          return (
-            <button key={pkg.id} onClick={() => setBooking({ ...booking, package: pkg.id })} style={{
-              flex: 1, padding: "14px 8px", textAlign: "center",
-              background: sel ? "rgba(62,106,225,0.1)" : "rgba(255,255,255,0.04)",
-              border: sel ? "1px solid rgba(62,106,225,0.45)" : "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "4px", cursor: "pointer", transition: "all 0.15s ease",
-            }}>
-              <p style={{ fontFamily: "var(--font-display)", fontSize: "0.6875rem", fontWeight: 500, letterSpacing: "0.05em", color: sel ? "rgba(62,106,225,0.85)" : "var(--steel)", marginBottom: "3px" }}>{pkg.duration}</p>
-              <p style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 500, color: sel ? "var(--pure-white)" : "var(--subtle-gray)", marginBottom: "2px" }}>{pkg.name}</p>
-              <p style={{ fontFamily: "var(--font-display)", fontSize: "0.9375rem", fontWeight: 400, color: sel ? "var(--tesla-blue)" : "var(--subtle-gray)" }}>{pkg.price}</p>
-            </button>
-          );
-        })}
-      </div>
+      {/* Package selection — hidden in voucher mode (duration set by voucher) */}
+      {!booking.hasVoucher && (
+        <>
+          <p style={lbl}>Session</p>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
+            {PACKAGES.map(pkg => {
+              const sel = booking.package === pkg.id;
+              return (
+                <button key={pkg.id} onClick={() => setBooking({ ...booking, package: pkg.id })} style={{
+                  flex: 1, padding: "14px 8px", textAlign: "center",
+                  background: sel ? "rgba(62,106,225,0.1)" : "rgba(255,255,255,0.04)",
+                  border: sel ? "1px solid rgba(62,106,225,0.45)" : "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "4px", cursor: "pointer", transition: "all 0.15s ease",
+                }}>
+                  <p style={{ fontFamily: "var(--font-display)", fontSize: "0.6875rem", fontWeight: 500, letterSpacing: "0.05em", color: sel ? "rgba(62,106,225,0.85)" : "var(--steel)", marginBottom: "3px" }}>{pkg.duration}</p>
+                  <p style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 500, color: sel ? "var(--pure-white)" : "var(--subtle-gray)", marginBottom: "2px" }}>{pkg.name}</p>
+                  <p style={{ fontFamily: "var(--font-display)", fontSize: "0.9375rem", fontWeight: 400, color: sel ? "var(--tesla-blue)" : "var(--subtle-gray)" }}>{pkg.price}</p>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
-      {/* Name row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
-        {[{ key: "firstName" as const, label: "First Name", ph: "Jane" }, { key: "lastName" as const, label: "Last Name", ph: "Smith" }].map(({ key, label, ph }) => (
+      {/* ── Voucher toggle ── */}
+      <button
+        onClick={() => setBooking({ ...booking, hasVoucher: !booking.hasVoucher, voucherCode: "" })}
+        style={{
+          display: "flex", alignItems: "center", gap: "14px", width: "100%",
+          padding: "16px 18px", marginBottom: booking.hasVoucher ? "12px" : "24px",
+          background: booking.hasVoucher ? "rgba(62,106,225,0.08)" : "rgba(255,255,255,0.03)",
+          border: booking.hasVoucher ? "1px solid rgba(62,106,225,0.35)" : "1px solid rgba(255,255,255,0.1)",
+          borderRadius: "var(--radius-card)", cursor: "pointer", textAlign: "left", transition: "all 0.2s ease",
+        }}
+      >
+        <div style={{
+          flexShrink: 0, width: "22px", height: "22px", borderRadius: "4px",
+          border: booking.hasVoucher ? "none" : "1.5px solid rgba(255,255,255,0.25)",
+          background: booking.hasVoucher ? "var(--tesla-blue)" : "transparent",
+          display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s ease",
+        }}>
+          {booking.hasVoucher && (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+        </div>
+        <div>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: "0.9375rem", fontWeight: 500, color: "var(--pure-white)", marginBottom: "2px" }}>
+            I have a voucher
+          </p>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 300, color: "var(--subtle-gray)" }}>
+            Redeem a gift voucher — session duration set by your voucher
+          </p>
+        </div>
+      </button>
+
+      {/* Voucher code input */}
+      {booking.hasVoucher && (
+        <div style={{ marginBottom: "24px" }}>
+          <label style={lbl}>Voucher Code</label>
+          <input
+            style={{ ...inp, fontFamily: "monospace", letterSpacing: "0.12em", fontSize: "1rem",
+              borderColor: booking.voucherCode && !VOUCHER_RE.test(booking.voucherCode) ? "rgba(220,80,80,0.5)" : "rgba(255,255,255,0.12)" }}
+            type="text"
+            placeholder="CT-XXXX-XXXX-XXXX"
+            value={booking.voucherCode}
+            maxLength={17}
+            onChange={e => setBooking({ ...booking, voucherCode: fmtVoucher(e.target.value) })}
+            onFocus={onFocus} onBlur={onBlur}
+          />
+          {booking.voucherCode && !VOUCHER_RE.test(booking.voucherCode) && (
+            <p style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", fontWeight: 300, color: "rgba(220,80,80,0.8)", marginTop: "6px" }}>
+              Format: CT-XXXX-XXXX-XXXX
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ── Personal details ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+        {([{ key: "firstName", label: "First Name", ph: "Jane" }, { key: "lastName", label: "Last Name", ph: "Smith" }] as const).map(({ key, label, ph }) => (
           <div key={key}>
             <label style={lbl}>{label}</label>
             <input style={inp} type="text" required placeholder={ph} value={booking[key]}
@@ -461,30 +759,65 @@ function DetailsStep({ booking, setBooking, onNext }: { booking: Booking; setBoo
         ))}
       </div>
 
-      <div style={{ marginBottom: "14px" }}>
+      <div style={{ marginBottom: "12px" }}>
         <label style={lbl}>Email</label>
         <input style={inp} type="email" required placeholder="you@example.com" value={booking.email}
           onChange={e => setBooking({ ...booking, email: e.target.value })} onFocus={onFocus} onBlur={onBlur} />
       </div>
 
-      <div style={{ marginBottom: "28px" }}>
-        <label style={lbl}>Phone</label>
+      <div style={{ marginBottom: "24px" }}>
+        <label style={lbl}>
+          Phone
+          <span style={{ fontWeight: 300, textTransform: "none", letterSpacing: 0, marginLeft: "6px", opacity: 0.6 }}>optional</span>
+        </label>
         <input style={inp} type="tel" placeholder="+420 600 000 000" value={booking.phone}
           onChange={e => setBooking({ ...booking, phone: e.target.value })} onFocus={onFocus} onBlur={onBlur} />
       </div>
 
-      <button onClick={onNext} disabled={!valid} className="btn-tesla-accent"
-        style={{ width: "100%", justifyContent: "center", height: "48px", opacity: valid ? 1 : 0.4 }}>
-        Reserve My Slot
-      </button>
-      <p style={{ textAlign: "center", marginTop: "14px", fontFamily: "var(--font-display)", fontSize: "0.75rem", fontWeight: 300, color: "var(--steel)", lineHeight: 1.5 }}>
-        €49 deposit by email within the hour · Fully refundable 48h before your session
-      </p>
+      {errMsg && (
+        <div style={{ padding: "10px 14px", marginBottom: "16px", background: "rgba(220,50,50,0.08)", border: "1px solid rgba(220,50,50,0.25)", borderRadius: "4px" }}>
+          <p style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 300, color: "rgba(255,100,100,0.9)" }}>{errMsg}</p>
+        </div>
+      )}
+
+      {/* ── CTA ── */}
+      {booking.hasVoucher ? (
+        <>
+          <button onClick={onNext} disabled={!voucherOk} className="btn-tesla-accent"
+            style={{ width: "100%", justifyContent: "center", height: "48px", opacity: voucherOk ? 1 : 0.4, marginBottom: "12px" }}>
+            Reserve with Voucher
+          </button>
+          <p style={{ textAlign: "center", fontFamily: "var(--font-display)", fontSize: "0.75rem", fontWeight: 300, color: "var(--steel)" }}>
+            No charge — slot is secured against your voucher code
+          </p>
+        </>
+      ) : (
+        <>
+          <button onClick={handlePayNow} disabled={!payOk || loading} className="btn-tesla-accent"
+            style={{ width: "100%", justifyContent: "center", height: "48px", opacity: payOk && !loading ? 1 : 0.4, gap: "8px" }}>
+            {loading ? (
+              <>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ animation: "rwSpin 0.75s linear infinite" }}>
+                  <circle cx="8" cy="8" r="6" stroke="rgba(255,255,255,0.3)" strokeWidth="2"/>
+                  <path d="M8 2a6 6 0 016 6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                <style>{`@keyframes rwSpin { to { transform: rotate(360deg); } }`}</style>
+                Redirecting to payment…
+              </>
+            ) : (
+              `Pay ${selectedPkg.price} & Reserve`
+            )}
+          </button>
+          <p style={{ textAlign: "center", marginTop: "12px", fontFamily: "var(--font-display)", fontSize: "0.75rem", fontWeight: 300, color: "var(--steel)" }}>
+            Secure payment via Stripe · Fully refundable 48h before your session
+          </p>
+        </>
+      )}
     </div>
   );
 }
 
-// ─── Step 4: Confirmed ───────────────────────────────────────────────
+// ─── Step 4: Confirmed (voucher redemption path) ──────────────────────
 
 function ConfirmedStep({ booking }: { booking: Booking }) {
   const pkg = PACKAGES.find(p => p.id === booking.package) || PACKAGES[0];
@@ -503,22 +836,27 @@ function ConfirmedStep({ booking }: { booking: Booking }) {
 
       <h1 className="t-heading-lg" style={{ color: "var(--pure-white)", marginBottom: "12px" }}>Slot Reserved</h1>
       <p style={{ fontFamily: "var(--font-display)", fontSize: "0.9375rem", fontWeight: 300, color: "var(--subtle-gray)", lineHeight: 1.65, marginBottom: "36px" }}>
-        We&apos;ll confirm your booking at <strong style={{ color: "var(--pure-white)" }}>{booking.email}</strong> within the hour with deposit payment instructions.
+        {booking.hasVoucher
+          ? <>Your slot is confirmed. We&apos;ll send a reminder to <strong style={{ color: "var(--pure-white)" }}>{booking.email}</strong> before your session.</>
+          : <>We&apos;ll confirm your booking at <strong style={{ color: "var(--pure-white)" }}>{booking.email}</strong> within the hour.</>
+        }
       </p>
 
-      {/* Booking summary */}
       <div style={{ padding: "20px 24px", background: "var(--surface-dark)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-card)", textAlign: "left", marginBottom: "28px" }}>
         {[
-          { label: "Experience", value: `${pkg.name} · ${pkg.duration}` },
+          { label: "Experience", value: booking.hasVoucher ? "Set by voucher" : `${pkg.name} · ${pkg.duration}` },
           { label: "City",       value: booking.city },
           { label: "Location",   value: booking.address },
           { label: "Date",       value: booking.dateLabel },
           { label: "Time",       value: booking.time },
-          { label: "Price",      value: pkg.price },
+          ...(booking.hasVoucher
+            ? [{ label: "Voucher", value: booking.voucherCode }]
+            : [{ label: "Price",   value: pkg.price }]
+          ),
         ].map(({ label, value }) => (
           <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
             <span style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 300, color: "var(--subtle-gray)" }}>{label}</span>
-            <span style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", fontWeight: 400, color: "var(--pure-white)", textAlign: "right", maxWidth: "60%" }}>{value}</span>
+            <span style={{ fontFamily: label === "Voucher" ? "monospace" : "var(--font-display)", fontSize: "0.8125rem", fontWeight: 400, color: "var(--pure-white)", textAlign: "right", maxWidth: "60%" }}>{value}</span>
           </div>
         ))}
       </div>

@@ -125,7 +125,7 @@ export default function Navigation() {
         </div>
 
         <a
-          href="#book"
+          href="/reserve"
           className="btn-tesla-accent"
           style={{ height: "36px", padding: "0 20px", fontSize: "0.8125rem" }}
         >

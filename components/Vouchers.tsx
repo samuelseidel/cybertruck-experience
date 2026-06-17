@@ -63,8 +63,7 @@ export default function Vouchers() {
   }, []);
 
   function buyVoucher(id: string) {
-    sessionStorage.setItem("voucherPkg", id);
-    document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
+    window.location.href = `/voucher?pkg=${id}`;
   }
 
   return (
